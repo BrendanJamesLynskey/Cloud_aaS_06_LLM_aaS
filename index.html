@@ -1,0 +1,1075 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LLM-as-a-Service — Providers, RAG, Agents, Security</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=DM+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.6.1/reveal.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.6.1/theme/black.min.css">
+<style>
+  :root{--amber:#f5a623;--green:#4ecb8d;--purple:#a78bfa;--blue:#60a5fa;--red:#f87171;
+    --bg:#0a0a0f;--bg2:#10101a;--bg3:#181824;--border:#2a2a3a;--text:#e8e8f0;--muted:#8888a8;}
+  .reveal-viewport{background:var(--bg);} .reveal .slides section{background:transparent;}
+  .reveal{font-family:'DM Sans',sans-serif;color:var(--text);}
+  .reveal h1,.reveal h2,.reveal h3{font-family:'Playfair Display',serif;font-weight:700;}
+  .reveal h1{font-size:1.6em;color:var(--amber);line-height:1.1;}
+  .reveal h2{font-size:1.1em;color:var(--amber);margin-bottom:.2em;}
+  .reveal h3{font-size:.78em;color:var(--green);margin-bottom:.15em;}
+  .reveal p{font-size:.56em;line-height:1.45;color:var(--text);}
+  .reveal li{font-size:.54em;line-height:1.45;margin-bottom:.1em;}
+  .reveal code{font-family:'JetBrains Mono',monospace;font-size:.72em;}
+  .reveal pre{box-shadow:none;background:var(--bg3);border:1px solid var(--border);
+    border-radius:6px;padding:.3em .5em;margin:.25em 0;}
+  .reveal pre code{font-size:.52em;line-height:1.35;background:transparent;color:#cdd6f4;}
+  .slide-hdr{display:flex;align-items:center;gap:.4em;border-bottom:1px solid var(--border);
+    padding-bottom:.2em;margin-bottom:.3em;}
+  .slide-hdr .tag{font-family:'JetBrains Mono',monospace;font-size:.42em;font-weight:500;
+    color:var(--bg);background:var(--amber);padding:.1em .4em;border-radius:3px;letter-spacing:.04em;}
+  .slide-hdr h2{margin:0;font-size:.95em;}
+  .cols{display:grid;gap:.5em;} .cols-2{grid-template-columns:1fr 1fr;}
+  .cols-3{grid-template-columns:1fr 1fr 1fr;} .cols-4{grid-template-columns:1fr 1fr 1fr 1fr;}
+  .cols-6040{grid-template-columns:6fr 4fr;} .cols-4060{grid-template-columns:4fr 6fr;}
+  .card{background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:.35em .6em;}
+  .card.amber{border-left:3px solid var(--amber);} .card.green{border-left:3px solid var(--green);}
+  .card.purple{border-left:3px solid var(--purple);} .card.blue{border-left:3px solid var(--blue);}
+  .card.red{border-left:3px solid var(--red);}
+  .card h3{font-size:.64em;margin:0 0 .12em;} .card p{font-size:.52em;margin:0;color:#b8b8d0;}
+  .card ul{margin:0;padding-left:1em;} .card li{font-size:.52em;color:#b8b8d0;margin-bottom:.02em;}
+  .reveal table{width:100%;border-collapse:collapse;font-size:.5em;}
+  .reveal table th{background:var(--bg3);color:var(--amber);font-weight:600;
+    padding:.2em .4em;border:1px solid var(--border);text-align:left;}
+  .reveal table td{padding:.18em .4em;border:1px solid var(--border);color:#ccc;}
+  .reveal table tr:nth-child(even) td{background:#0e0e18;}
+  .a{color:var(--amber);font-weight:600;} .g{color:var(--green);font-weight:600;}
+  .p{color:var(--purple);font-weight:600;} .b{color:var(--blue);font-weight:600;}
+  .r{color:var(--red);font-weight:600;} .mono{font-family:'JetBrains Mono',monospace;}
+  svg.diagram{display:block;margin:0 auto;overflow:visible;}
+  .pill{display:inline-block;font-family:'JetBrains Mono',monospace;font-size:.44em;
+    padding:.08em .4em;border-radius:99px;border:1px solid;margin:0 .08em;}
+  .pill.amber{color:var(--amber);border-color:var(--amber);}
+  .pill.green{color:var(--green);border-color:var(--green);}
+  .pill.purple{color:var(--purple);border-color:var(--purple);}
+  .pill.blue{color:var(--blue);border-color:var(--blue);}
+  .reveal .slide-footer{display:none;}
+  .title-slide h1{font-size:1.8em;}
+  .title-slide .subtitle{font-size:.7em;color:var(--green);font-family:'DM Sans',sans-serif;
+    font-weight:300;letter-spacing:.04em;margin:.3em 0 .6em;}
+  .title-slide .meta{font-size:.48em;color:var(--muted);font-family:'JetBrains Mono',monospace;}
+  .ss-row{display:flex;gap:.25em;align-items:center;margin:.1em 0;font-size:.55em;
+    font-family:'JetBrains Mono',monospace;flex-wrap:wrap;}
+  .ss-node{padding:.2em .55em;border-radius:5px;font-size:.9em;
+    background:var(--bg3);border:1px solid var(--border);color:var(--text);}
+  .ss-node.active{background:#1a2a1a;border-color:var(--green);color:var(--green);}
+  .ss-node.done{background:#1a1a2a;border-color:var(--purple);color:var(--purple);}
+  .ss-arrow{color:var(--amber);} .ss-label{font-size:.8em;color:var(--muted);margin-left:.3em;}
+  .reveal ul,.reveal ol{margin:.15em 0 .15em 1em;}
+  .reveal .slides>section{display:flex!important;flex-direction:column!important;
+    overflow-y:auto!important;align-items:stretch!important;justify-content:flex-start!important;}
+</style>
+</head>
+<body>
+<div class="reveal">
+<div class="slides">
+
+
+<!-- 01 — TITLE -->
+<section class="title-slide" data-background-color="#0a0a0f">
+  <div style="text-align:left; max-width:820px; margin:0 auto; padding: 1em 0;">
+    <div style="font-family:'JetBrains Mono',monospace; font-size:.5em; color:var(--muted); margin-bottom:.4em; letter-spacing:.1em;">
+      CLOUD SERVICE MODELS &middot; PART 6 OF 6
+    </div>
+    <h1>LLM-as-a-Service</h1>
+    <div class="subtitle">Providers · pricing · RAG · agents · evals · governance — the managed-AI layer of the cloud</div>
+    <div style="width:60px; height:3px; background:var(--amber); margin-bottom:1.4em;"></div>
+    <div style="display:flex; gap:.4em; flex-wrap:wrap; margin-bottom:1em;">
+      <span class="pill amber">OpenAI · Anthropic · Google</span>
+      <span class="pill green">Bedrock · Vertex · Azure OpenAI</span>
+      <span class="pill purple">Together · Groq · Fireworks</span>
+      <span class="pill blue">Pinecone · Weaviate · Turbopuffer</span>
+      <span class="pill amber">LangSmith · Braintrust · Langfuse</span>
+    </div>
+    <div class="ss-row">
+      <span class="ss-node active">📝 Prompt</span>
+      <span class="ss-arrow">→</span>
+      <span class="ss-node active">🔎 Retrieve</span>
+      <span class="ss-arrow">→</span>
+      <span class="ss-node active">🧠 Model</span>
+      <span class="ss-arrow">→</span>
+      <span class="ss-node active">🛠 Tool / agent</span>
+      <span class="ss-arrow">→</span>
+      <span class="ss-node done">📊 Eval</span>
+    </div>
+    <p style="max-width:640px; color:#a0a0c0; font-size:.56em; line-height:1.5; margin-top:1em;">
+      Managed counterparts to every part of the LLM stack. Companion to the <a href="https://github.com/BrendanJamesLynskey/LLM_Hub_Local_LLM_Hosting" style="color:#4ecb8d;">Local LLM Hosting</a> sub-hub for the self-hosted side.
+    </p>
+    <div class="meta" style="margin-top:1.4em;">
+      Inference &nbsp;·&nbsp; RAG &nbsp;·&nbsp; Agents &nbsp;·&nbsp; Evals &nbsp;·&nbsp; Governance
+    </div>
+  </div>
+</section>
+
+
+<!-- 02 — TOPICS -->
+<section data-background-color="#0a0a0f">
+  <div class="slide-hdr"><span class="tag">01</span><h2>Topics</h2></div>
+  <div class="cols cols-2">
+    <div>
+      <div class="card amber">
+        <h3 class="a">Inference layer</h3>
+        <ul>
+          <li>The provider landscape — frontier &amp; specialist</li>
+          <li>Per-token pricing economics</li>
+          <li>Latency: TTFT, throughput, regional routing</li>
+          <li>Prompt caching — 10× cost reduction</li>
+        </ul>
+      </div>
+      <div class="card green" style="margin-top:0.4em;">
+        <h3 class="g">Retrieval layer</h3>
+        <ul>
+          <li>Embeddings-as-a-Service</li>
+          <li>Vector DB / hybrid search providers</li>
+          <li>Hosted RAG end-to-end</li>
+        </ul>
+      </div>
+    </div>
+    <div>
+      <div class="card purple">
+        <h3 class="p">Agent &amp; ops layer</h3>
+        <ul>
+          <li>Agents-as-a-Service (Bedrock, Vertex, Assistants)</li>
+          <li>Fine-tuning APIs</li>
+          <li>Evals / observability / guardrails</li>
+          <li>MCP server hosting</li>
+        </ul>
+      </div>
+      <div class="card blue" style="margin-top:0.4em;">
+        <h3 class="b">Governance &amp; cost</h3>
+        <ul>
+          <li>LLM-specific security — prompt injection, PII, BYOK</li>
+          <li>Compliance (EU AI Act, ISO 42001, NIST AI RMF)</li>
+          <li>Cost engineering — caching, routing, fallbacks</li>
+          <li>Anti-patterns and a final summary</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- 03 — LANDSCAPE -->
+<section data-background-color="#0a0a0f">
+  <div class="slide-hdr"><span class="tag">02</span><h2>The LLMaaS Landscape — Five Sub-Layers</h2></div>
+
+  <svg class="diagram" viewBox="0 0 1000 280" width="940" height="280">
+    <!-- horizontal layers -->
+    <g font-family="Playfair Display,serif" font-size="13" font-weight="700">
+      <rect x="40"  y="20"  width="920" height="40" rx="4" fill="#1a2a1a" stroke="#4ecb8d"/>
+      <text x="60"  y="45" fill="#4ecb8d">5. Application</text>
+      <text x="500" y="45" fill="#ccc" font-family="JetBrains Mono,monospace" font-size="10" text-anchor="middle">your SaaS · your users · your prompts</text>
+
+      <rect x="40"  y="70"  width="920" height="40" rx="4" fill="#1a1a2a" stroke="#a78bfa"/>
+      <text x="60"  y="95" fill="#a78bfa">4. Agents · Evals · Guardrails</text>
+      <text x="600" y="95" fill="#ccc" font-family="JetBrains Mono,monospace" font-size="10" text-anchor="middle">Bedrock Agents · Vertex AI Agent Builder · OpenAI Assistants · LangSmith · Braintrust · Langfuse · Lakera</text>
+
+      <rect x="40"  y="120" width="920" height="40" rx="4" fill="#1a1a2a" stroke="#60a5fa"/>
+      <text x="60"  y="145" fill="#60a5fa">3. Retrieval / RAG</text>
+      <text x="600" y="145" fill="#ccc" font-family="JetBrains Mono,monospace" font-size="10" text-anchor="middle">Pinecone · Weaviate · Turbopuffer · Vespa Cloud · MongoDB Atlas Vector · Cohere Rerank</text>
+
+      <rect x="40"  y="170" width="920" height="40" rx="4" fill="#2a2a18" stroke="#f5a623"/>
+      <text x="60"  y="195" fill="#f5a623">2. Inference (the model API)</text>
+      <text x="600" y="195" fill="#ccc" font-family="JetBrains Mono,monospace" font-size="10" text-anchor="middle">OpenAI · Anthropic · Google · Mistral · Bedrock · Vertex · Azure OpenAI · Together · Groq · Fireworks · DeepInfra · Replicate</text>
+
+      <rect x="40"  y="220" width="920" height="40" rx="4" fill="#2a1a1a" stroke="#f87171"/>
+      <text x="60"  y="245" fill="#f87171">1. Compute (GPUs / TPUs / accelerators)</text>
+      <text x="600" y="245" fill="#ccc" font-family="JetBrains Mono,monospace" font-size="10" text-anchor="middle">NVIDIA Hopper / Blackwell · Google TPU v5p/v6 · AWS Trainium 2 · Groq LPU · SambaNova RDU · Cerebras WSE</text>
+    </g>
+  </svg>
+
+  <p style="margin-top:.3em; text-align:center; color:#888; font-size:.5em;">Each layer adds management; you pick where to start. Most production AI apps build on layer 2 (model API) and add layer 3 (RAG); enterprise reaches into layer 4.</p>
+</section>
+
+
+<!-- 04 — FRONTIER PROVIDERS -->
+<section data-background-color="#0a0a0f">
+  <div class="slide-hdr"><span class="tag">03</span><h2>Frontier Providers</h2></div>
+
+  <table style="margin-top:.3em;">
+    <thead><tr><th>Provider</th><th>Flagship (2025-26)</th><th>Strengths</th><th>Gotchas</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><span class="a">Anthropic</span></td><td>Claude Opus 4.7 · Sonnet 4.6 · Haiku 4.5</td>
+        <td>Long-context discipline, agentic tasks, prompt caching, extended thinking, MCP-native</td>
+        <td>Tighter rate limits than OpenAI on hobby tier; first-party endpoint or via Bedrock / Vertex</td>
+      </tr>
+      <tr>
+        <td><span class="a">OpenAI</span></td><td>GPT-5 · o3 · GPT-5-mini</td>
+        <td>Largest tooling ecosystem, broadest function-calling, Realtime &amp; Voice APIs, Assistants v2</td>
+        <td>Frequent model-deprecation churn; data-residency only via Azure OpenAI</td>
+      </tr>
+      <tr>
+        <td><span class="a">Google</span></td><td>Gemini 2.5 Pro · Flash · Nano Banana</td>
+        <td>1M-token context, native video, deep Vertex integration, $0 egress between Google services</td>
+        <td>API surface fragments across AI Studio, Vertex, Firebase</td>
+      </tr>
+      <tr>
+        <td><span class="a">Mistral AI</span></td><td>Mistral Large 2 · Codestral 25 · Pixtral</td>
+        <td>EU-resident, partial open-weights, fine-tuning on the API</td>
+        <td>Context windows shorter than rivals at flagship tier</td>
+      </tr>
+      <tr>
+        <td><span class="a">xAI</span></td><td>Grok 4</td><td>Real-time X data, 256k context</td><td>Less enterprise tooling, narrower compliance posture</td>
+      </tr>
+      <tr>
+        <td><span class="a">DeepSeek</span></td><td>DeepSeek-V4 · R1.5 (reasoning)</td>
+        <td>Extremely cheap; OSS weights of equivalents</td>
+        <td>Provider hosted in PRC; many enterprises self-host the weights via specialists</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="cols cols-2" style="margin-top:.3em;">
+    <div class="card amber">
+      <h3 class="a">Hyperscaler model gardens</h3>
+      <ul>
+        <li><span class="g">AWS Bedrock</span> — Anthropic, Meta Llama, Mistral, Cohere, Stability, Amazon Nova, custom imports</li>
+        <li><span class="g">GCP Vertex AI</span> — Gemini + Anthropic + Llama + Mistral + JAX-based custom</li>
+        <li><span class="g">Azure AI Foundry</span> — OpenAI under MS perimeter + Llama + Mistral + Cohere + Phi</li>
+        <li>Same models, different compliance perimeter, different egress &amp; latency profile</li>
+      </ul>
+    </div>
+    <div class="card green">
+      <h3 class="g">Frontier vs first-party tradeoff</h3>
+      <p>Anthropic via api.anthropic.com versus via Bedrock: same model, same intelligence. <em>Different</em>: pricing, region, compliance (HIPAA only via Bedrock until recently), authentication (API key vs IAM role), latency to your VPC. For most enterprise workloads, the hyperscaler route is mandatory.</p>
+    </div>
+  </div>
+</section>
+
+
+<!-- 05 — SPECIALIST PROVIDERS -->
+<section data-background-color="#0a0a0f">
+  <div class="slide-hdr"><span class="tag">04</span><h2>Specialist Inference Providers</h2></div>
+  <p>Open-weights models (Llama, Mistral, Qwen, DeepSeek) hosted by specialists. Same weights as you could self-host (deck reference: <a href="https://github.com/BrendanJamesLynskey/LLM_Hub_Local_LLM_Hosting">Local LLM Hosting</a>) but billed per token.</p>
+
+  <div class="cols cols-2" style="margin-top:0.4em;">
+    <div>
+      <div class="card amber">
+        <h3 class="a">High-throughput open-weights hosts</h3>
+        <ul>
+          <li><span class="g">Together AI</span> — broadest Llama / Mixtral / DeepSeek / Qwen catalogue, fine-tuning</li>
+          <li><span class="g">Fireworks AI</span> — best-in-class throughput per dollar, FireFunction-tuned models</li>
+          <li><span class="g">DeepInfra</span> — cheapest end of the market</li>
+          <li><span class="g">Replicate</span> — model-by-model deploy, popular for image/video</li>
+          <li><span class="g">RunPod Serverless</span> · <span class="g">Modal</span> — bring-your-own-model serverless GPU</li>
+        </ul>
+      </div>
+      <div class="card green" style="margin-top:0.4em;">
+        <h3 class="g">Custom-silicon, ultra-low-latency</h3>
+        <ul>
+          <li><span class="a">Groq</span> — LPU; 700+ tokens/sec on Llama 70B; 100ms TTFT</li>
+          <li><span class="a">Cerebras Inference</span> — WSE wafer-scale; world's fastest, often &gt; 1000 tok/s</li>
+          <li><span class="a">SambaNova Cloud</span> — RDU; flagship "Cloud-1" for Llama 3.x &amp; DeepSeek</li>
+          <li>Latency-sensitive use cases: real-time agents, voice, code completion</li>
+        </ul>
+      </div>
+    </div>
+    <div>
+      <div class="card purple">
+        <h3 class="p">Image / video / audio specialists</h3>
+        <ul>
+          <li><span class="a">FAL</span> — fast image diffusion API; Flux models</li>
+          <li><span class="a">Black Forest Labs</span> — Flux family, frontier image</li>
+          <li><span class="a">ElevenLabs</span> · <span class="a">Cartesia</span> · <span class="a">Resemble</span> — TTS</li>
+          <li><span class="a">Deepgram</span> · <span class="a">AssemblyAI</span> — STT</li>
+          <li><span class="a">Runway</span> · <span class="a">Pika</span> · <span class="a">Luma</span> — video</li>
+        </ul>
+      </div>
+      <div class="card blue" style="margin-top:0.4em;">
+        <h3 class="b">Why specialists matter</h3>
+        <ul>
+          <li><span class="g">Price floor</span> — DeepInfra Llama 70B at ~$0.50/M tokens vs Anthropic Sonnet at ~$3/M</li>
+          <li><span class="g">Latency floor</span> — Groq's 700 tok/s vs OpenAI's ~80 tok/s</li>
+          <li><span class="g">Compliance floor</span> — open weights you can self-host as a backup</li>
+          <li><span class="g">Innovation pace</span> — new models on Together / Fireworks days after release</li>
+        </ul>
+      </div>
+      <div class="card red" style="margin-top:0.4em;">
+        <h3 class="r">Caveat — specialist routing</h3>
+        <p>Specialists may share inference fleets; the "same model" can have measurably different output distributions across providers. Pin a provider per workload; benchmark before switching.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- 06 — PRICING -->
+<section data-background-color="#0a0a0f">
+  <div class="slide-hdr"><span class="tag">05</span><h2>Pricing — Per-Token Economics</h2></div>
+
+  <table style="font-size:.46em;">
+    <thead><tr><th>Model</th><th>Context</th><th>Input $/M tok</th><th>Output $/M tok</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr><td>Claude Opus 4.7</td><td>200k</td><td>$15</td><td>$75</td><td>5× discount with 1h prompt-cache hit</td></tr>
+      <tr><td>Claude Sonnet 4.6</td><td>200k–1M</td><td>$3</td><td>$15</td><td>most popular workhorse</td></tr>
+      <tr><td>Claude Haiku 4.5</td><td>200k</td><td>$1</td><td>$5</td><td>cheap-and-fast tier</td></tr>
+      <tr><td>GPT-5</td><td>400k</td><td>$2.50</td><td>$10</td><td>frontier OpenAI</td></tr>
+      <tr><td>GPT-5-mini</td><td>400k</td><td>$0.25</td><td>$2</td><td>cheapest flagship-class</td></tr>
+      <tr><td>OpenAI o3</td><td>200k</td><td>$60</td><td>$240</td><td>reasoning model; thinks for tokens you pay for</td></tr>
+      <tr><td>Gemini 2.5 Pro</td><td>1M+</td><td>$1.25 (≤200k) · $2.50 (&gt;200k)</td><td>$10–15</td><td>caching; long-context tiered pricing</td></tr>
+      <tr><td>Gemini 2.5 Flash</td><td>1M</td><td>$0.30</td><td>$2.50</td><td>cheap workhorse</td></tr>
+      <tr><td>Mistral Large 2</td><td>128k</td><td>$2</td><td>$6</td><td>EU-resident</td></tr>
+      <tr><td>Llama 3.3 70B (Together)</td><td>128k</td><td>$0.88</td><td>$0.88</td><td>open-weights pricing</td></tr>
+      <tr><td>DeepSeek-V3 (DeepInfra)</td><td>64k</td><td>$0.27</td><td>$1.10</td><td>provider-hosted in PRC</td></tr>
+    </tbody>
+  </table>
+
+  <div class="cols cols-2" style="margin-top:0.3em;">
+    <div class="card amber">
+      <h3 class="a">What dominates the bill</h3>
+      <ul>
+        <li><span class="g">Output tokens are 2–5× the price of input</span> — keep output concise</li>
+        <li><span class="g">Long contexts (RAG-stuffing)</span> — every retrieval round hits input pricing</li>
+        <li><span class="g">Reasoning models</span> — invisible "thinking" tokens are billed too</li>
+        <li><span class="g">Agent loops</span> — every tool-call round is a full prompt + response</li>
+      </ul>
+    </div>
+    <div class="card green">
+      <h3 class="g">Caching tiers</h3>
+      <ul>
+        <li><span class="a">Anthropic prompt caching</span> — 5min default, 1h opt-in; 90% input price discount on hits</li>
+        <li><span class="a">OpenAI prompt caching</span> — automatic, 50% discount on hits</li>
+        <li><span class="a">Gemini context caching</span> — pay storage by minute; cheaper for stable system prompts</li>
+        <li>Caching turns expensive 100k-token system prompts from 100% to 10% cost</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+
+<!-- 07 — LATENCY -->
+<section data-background-color="#0a0a0f">
+  <div class="slide-hdr"><span class="tag">06</span><h2>Latency — TTFT vs Throughput</h2></div>
+  <p>"How fast is the model?" decomposes into two numbers: <span class="a">TTFT</span> (time to first token — how long the user waits to see anything) and <span class="a">tok/s</span> (steady-state output rate).</p>
+
+  <div class="cols cols-2" style="margin-top:0.4em;">
+    <div>
+      <div class="card amber">
+        <h3 class="a">Typical numbers (2025-26)</h3>
+        <table>
+          <thead><tr><th>Provider / model</th><th>TTFT</th><th>Tok/s</th></tr></thead>
+          <tbody>
+            <tr><td>Cerebras (Llama 70B)</td><td>~150 ms</td><td>~2,000</td></tr>
+            <tr><td>Groq (Llama 70B)</td><td>~170 ms</td><td>~700</td></tr>
+            <tr><td>SambaNova (Llama)</td><td>~250 ms</td><td>~600</td></tr>
+            <tr><td>Anthropic Haiku 4.5</td><td>~250 ms</td><td>~120</td></tr>
+            <tr><td>GPT-5-mini</td><td>~300 ms</td><td>~85</td></tr>
+            <tr><td>Anthropic Sonnet 4.6</td><td>~500 ms</td><td>~75</td></tr>
+            <tr><td>Anthropic Opus 4.7</td><td>~800 ms</td><td>~50</td></tr>
+            <tr><td>Reasoning (o3, Sonnet thinking)</td><td>1–10 s+</td><td>varies; thinking before output</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div>
+      <div class="card green">
+        <h3 class="g">When latency matters most</h3>
+        <ul>
+          <li><span class="a">Voice agents</span> — sub-200ms turn-taking; needs Cerebras / Groq + Realtime API</li>
+          <li><span class="a">Code completion</span> — every 200ms above 400ms feels laggy</li>
+          <li><span class="a">Chat UX</span> — &lt; 1.5 s TTFT keeps users engaged</li>
+          <li><span class="a">Agents</span> — N tool-calls × per-call latency; latency multiplies</li>
+        </ul>
+      </div>
+      <div class="card purple" style="margin-top:0.4em;">
+        <h3 class="p">Streaming, every time</h3>
+        <ul>
+          <li>HTTP SSE from the API → forward to client</li>
+          <li>Don't buffer for "completeness" — first token to user as fast as possible</li>
+          <li>SSE deck: <a href="https://github.com/BrendanJamesLynskey/Introduction_to_Server_Sent_Events">Introduction to Server-Sent Events</a></li>
+        </ul>
+      </div>
+      <div class="card blue" style="margin-top:0.4em;">
+        <h3 class="b">Regional routing</h3>
+        <ul>
+          <li>Anthropic: api.anthropic.com is US-only; via Bedrock you get eu-central-1, eu-west-2, ap-northeast-1, etc.</li>
+          <li>Latency to model often dwarfs latency from model — pick the region near your users</li>
+          <li>Vertex AI lets you pin model region; Azure OpenAI mandates it (and inherits Azure's region list)</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- 08 — PROMPT CACHING -->
+<section data-background-color="#0a0a0f">
+  <div class="slide-hdr"><span class="tag">07</span><h2>Prompt Caching — The 10× Cost Lever</h2></div>
+  <p>Every conversation, agent loop, and RAG response sends the same system prompt + tool schema again and again. Prompt caching makes the provider remember the prefix; you pay for new tokens, not for the cached prefix.</p>
+
+  <div class="cols cols-2" style="margin-top:0.4em;">
+    <div>
+      <div class="card amber">
+        <h3 class="a">Anthropic example</h3>
+<pre><code>POST /v1/messages
+{
+  "model": "claude-sonnet-4-6",
+  "system": [
+    {
+      "type": "text",
+      "text": "You are an expert coding assistant…(50KB)…",
+      "cache_control": {"type": "ephemeral"}
+    }
+  ],
+  "messages": [{"role":"user","content":"…"}]
+}
+
+# First call:    full input price (e.g. $3/M)
+# Cached calls:  $0.30/M input — 90% off — for 5 min
+# 1h caching:    $0.50/M input — 80% off — opt-in
+# Cache write:   1.25× of base input price (one-time)</code></pre>
+      </div>
+      <div class="card green" style="margin-top:0.4em;">
+        <h3 class="g">When it pays</h3>
+        <ul>
+          <li>Long system prompts repeated across users</li>
+          <li>RAG context that's stable for minutes (e.g. a doc the user is asking 5 questions about)</li>
+          <li>Multi-turn agents — entire previous turn history can cache</li>
+          <li>Tool schemas (often big; rarely change)</li>
+        </ul>
+      </div>
+    </div>
+    <div>
+      <div class="card purple">
+        <h3 class="p">Provider variants</h3>
+        <ul>
+          <li><span class="a">OpenAI</span> — automatic for prompts ≥ 1024 tokens; 50% off; no opt-in</li>
+          <li><span class="a">Gemini context caching</span> — explicit cache create; pay storage per hour</li>
+          <li><span class="a">DeepSeek</span> — automatic, 90% off cached input</li>
+          <li><span class="a">Together / Fireworks</span> — provider-side KV cache; no API surface yet</li>
+        </ul>
+      </div>
+      <div class="card blue" style="margin-top:0.4em;">
+        <h3 class="b">Cache placement matters</h3>
+        <ul>
+          <li>Put stable content first: system prompt → tool schemas → RAG docs → user message</li>
+          <li>Set <code>cache_control</code> on the <em>last</em> stable item — everything before is cached</li>
+          <li>Re-send the cached blocks every call; cache survives by being re-referenced</li>
+        </ul>
+      </div>
+      <div class="card red" style="margin-top:0.4em;">
+        <h3 class="r">Where caching fails</h3>
+        <p>Personalised system prompts (per-user tone tweaks); shuffled doc order in RAG; templating that re-renders the same content with whitespace drift. Lock the prefix bytes-stable.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- 09 — EMBEDDINGS / VECTOR DB -->
+<section data-background-color="#0a0a0f">
+  <div class="slide-hdr"><span class="tag">08</span><h2>Embeddings &amp; Vector DBs — RAG-as-a-Service</h2></div>
+
+  <div class="cols cols-2" style="margin-top:0.4em;">
+    <div>
+      <div class="card amber">
+        <h3 class="a">Embedding APIs</h3>
+        <table>
+          <thead><tr><th>Provider</th><th>Model</th><th>Dim</th><th>$/M tok</th></tr></thead>
+          <tbody>
+            <tr><td>OpenAI</td><td>text-embedding-3-large</td><td>3072</td><td>$0.13</td></tr>
+            <tr><td>OpenAI</td><td>text-embedding-3-small</td><td>1536</td><td>$0.02</td></tr>
+            <tr><td>Voyage AI</td><td>voyage-3-large</td><td>1024</td><td>$0.18</td></tr>
+            <tr><td>Cohere</td><td>embed-v4</td><td>variable</td><td>$0.12</td></tr>
+            <tr><td>Google</td><td>text-embedding-005</td><td>768</td><td>$0.025</td></tr>
+            <tr><td>Mistral</td><td>mistral-embed</td><td>1024</td><td>$0.10</td></tr>
+            <tr><td>Jina v4 (cloud)</td><td>multilingual</td><td>2048</td><td>$0.05</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="card green" style="margin-top:0.4em;">
+        <h3 class="g">Vector DB providers</h3>
+        <ul>
+          <li><span class="a">Pinecone</span> — managed, serverless tier, hybrid (BM25 + dense), generous free tier</li>
+          <li><span class="a">Weaviate Cloud</span> — OSS lineage, hybrid, generative modules built-in</li>
+          <li><span class="a">Turbopuffer</span> — object-storage-backed, cheap at scale</li>
+          <li><span class="a">Vespa Cloud</span> — search engine + vectors; for "real" search workloads</li>
+          <li><span class="a">Qdrant Cloud</span> · <span class="a">Milvus / Zilliz</span> — open-source-rooted</li>
+          <li><span class="a">Postgres with pgvector</span> — Neon, Supabase, Crunchy; cheaper at small scale</li>
+        </ul>
+      </div>
+    </div>
+    <div>
+      <div class="card purple">
+        <h3 class="p">Hybrid search wins</h3>
+        <ul>
+          <li>Pure-vector misses keyword/code matches</li>
+          <li>BM25 alone misses semantic similarity</li>
+          <li>Hybrid (RRF fusion or learned reranker) is now table-stakes — Pinecone, Weaviate, Vespa, Elastic, Vespa all support it natively</li>
+          <li>Add a reranker (Cohere Rerank, Jina Rerank, Voyage rerank) for the last 10% of relevance</li>
+        </ul>
+      </div>
+      <div class="card blue" style="margin-top:0.4em;">
+        <h3 class="b">Hosted RAG end-to-end</h3>
+        <ul>
+          <li><span class="a">Bedrock Knowledge Bases</span> — S3 ingest → Bedrock embeddings → OpenSearch / Pinecone / Aurora pgvector → RetrieveAndGenerate API</li>
+          <li><span class="a">Vertex AI Search</span> — Google's managed RAG layer</li>
+          <li><span class="a">Azure AI Search + Foundry</span> — full RAG stack on Azure</li>
+          <li><span class="a">Claude file search / OpenAI file search</span> — provider-native RAG tools, no DB to operate</li>
+        </ul>
+      </div>
+      <div class="card red" style="margin-top:0.4em;">
+        <h3 class="r">RAG companion deck</h3>
+        <p>Deeper architecture lives in the <a href="https://github.com/BrendanJamesLynskey/LLM_Hub_RAG_Retrieval">RAG &amp; Retrieval Systems</a> sub-hub.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- 10 — AGENTS-AS-A-SERVICE -->
+<section data-background-color="#0a0a0f">
+  <div class="slide-hdr"><span class="tag">09</span><h2>Agents-as-a-Service</h2></div>
+  <p>The provider hosts the agent loop — tool calls, memory, retries, observability — so you give it a task and a set of tools, and it runs the loop.</p>
+
+  <div class="cols cols-2" style="margin-top:0.4em;">
+    <div>
+      <div class="card amber">
+        <h3 class="a">Hyperscaler offerings</h3>
+        <ul>
+          <li><span class="g">AWS Bedrock Agents + AgentCore</span> — declarative agent, code-interpreter, knowledge-base, action groups (Lambda)</li>
+          <li><span class="g">Vertex AI Agent Builder</span> — Google's; integrates Vertex Search, gen-app builder</li>
+          <li><span class="g">Azure AI Foundry Agents</span> — Azure-side, builds on Assistants v2</li>
+        </ul>
+      </div>
+      <div class="card green" style="margin-top:0.4em;">
+        <h3 class="g">Provider-side agents</h3>
+        <ul>
+          <li><span class="a">OpenAI Agent Kit + Responses API</span> — built-in tools (web, file, code interpreter, computer use)</li>
+          <li><span class="a">Anthropic Computer Use</span> · <span class="a">Code Execution</span> · <span class="a">Web Search</span> — first-party tools, MCP client built-in</li>
+          <li><span class="a">Google AI Studio Agents</span> — Gemini + tools</li>
+        </ul>
+      </div>
+    </div>
+    <div>
+      <div class="card purple">
+        <h3 class="p">DIY framework + managed runtime</h3>
+        <ul>
+          <li><span class="a">LangGraph Cloud</span> — host LangGraph graphs, persistent state, checkpoints</li>
+          <li><span class="a">CrewAI Enterprise</span> — multi-agent teams</li>
+          <li><span class="a">AutoGen Studio</span> — Microsoft's</li>
+          <li><span class="a">LlamaIndex Workflows</span> — declarative multi-step</li>
+          <li>See <a href="https://github.com/BrendanJamesLynskey/LLM_Hub_Agents">Agents &amp; Orchestration</a> sub-hub</li>
+        </ul>
+      </div>
+      <div class="card blue" style="margin-top:0.4em;">
+        <h3 class="b">When to outsource the loop</h3>
+        <ul>
+          <li>Standard "answer-then-tool-then-answer" agents → provider-side (cheaper, better-cached)</li>
+          <li>Complex graphs with checkpoints, human-in-the-loop, observability needs → LangGraph Cloud</li>
+          <li>Tightly-coupled to your domain logic → DIY in your CaaS / FaaS</li>
+        </ul>
+      </div>
+      <div class="card red" style="margin-top:0.4em;">
+        <h3 class="r">The agent cost trap</h3>
+        <p>An agent loop hides token cost. 10 tool-call rounds × full-prompt resends × output = bills 50× a single completion. Cache aggressively, set max-iteration ceilings, alarm on "agent ran &gt; 30 steps".</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- 11 — FINE-TUNING APIS -->
+<section data-background-color="#0a0a0f">
+  <div class="slide-hdr"><span class="tag">10</span><h2>Fine-Tuning APIs</h2></div>
+
+  <div class="cols cols-2" style="margin-top:0.4em;">
+    <div>
+      <div class="card amber">
+        <h3 class="a">What's offered</h3>
+        <table>
+          <thead><tr><th>Provider</th><th>Type</th><th>Models</th></tr></thead>
+          <tbody>
+            <tr><td>OpenAI</td><td>SFT, DPO, vision SFT</td><td>4o, 4o-mini, GPT-5-mini</td></tr>
+            <tr><td>Anthropic (via Bedrock)</td><td>SFT</td><td>Haiku 3.5; Sonnet 4 GA in 2025</td></tr>
+            <tr><td>Google Vertex</td><td>SFT, RLHF, distillation</td><td>Gemini Flash; Gemma open-weights</td></tr>
+            <tr><td>Mistral</td><td>SFT, LoRA</td><td>Mistral Large &amp; smaller</td></tr>
+            <tr><td>Together / Fireworks</td><td>SFT, LoRA, DPO</td><td>any open-weight on platform</td></tr>
+            <tr><td>AWS Bedrock</td><td>SFT, continued pretrain</td><td>Llama, Titan, Nova</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="card green" style="margin-top:0.4em;">
+        <h3 class="g">When to fine-tune</h3>
+        <ul>
+          <li>Distillation — small model gets close to a frontier model on <em>your task</em></li>
+          <li>Tone / style / format that prompting can't reliably get</li>
+          <li>Domain vocabulary the base model handles poorly</li>
+          <li>Output schema reliability (e.g. JSON adherence) when constrained decoding isn't enough</li>
+        </ul>
+      </div>
+    </div>
+    <div>
+      <div class="card purple">
+        <h3 class="p">When <em>not</em> to fine-tune</h3>
+        <ul>
+          <li>"Knowledge update" — RAG is faster, cheaper, more current</li>
+          <li>Prompt engineering plus eval cycle hasn't been exhausted</li>
+          <li>You don't have ≥ a few hundred high-quality examples</li>
+          <li>The base model improves quarterly; your tune ages out</li>
+        </ul>
+      </div>
+      <div class="card blue" style="margin-top:0.4em;">
+        <h3 class="b">Cost shape</h3>
+        <ul>
+          <li>Training: $/1M training tokens (rough — OpenAI 4o: $25/M training tokens)</li>
+          <li>Inference: tuned models cost more per-token (~1.5–2× base) <em>and</em> can't share caches with base</li>
+          <li>Hosting: some providers charge a per-hour or per-month "deploy" fee</li>
+        </ul>
+      </div>
+      <div class="card red" style="margin-top:0.4em;">
+        <h3 class="r">Fine-tuning is rarely the first lever</h3>
+        <p>Most production wins come from prompt engineering + retrieval + good evals. Fine-tune only when those hit a ceiling.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- 12 — EVAL / OBSERVABILITY -->
+<section data-background-color="#0a0a0f">
+  <div class="slide-hdr"><span class="tag">11</span><h2>Evals &amp; Observability — As-a-Service</h2></div>
+
+  <div class="cols cols-2" style="margin-top:0.4em;">
+    <div>
+      <div class="card amber">
+        <h3 class="a">LLM observability platforms</h3>
+        <ul>
+          <li><span class="g">LangSmith</span> — LangChain native; traces, datasets, evals</li>
+          <li><span class="g">Langfuse</span> — OSS-rooted; self-host or hosted</li>
+          <li><span class="g">Helicone</span> — proxy-based, simple drop-in</li>
+          <li><span class="g">Braintrust</span> — eval-first, used by Anthropic / Stripe / Notion</li>
+          <li><span class="g">Arize Phoenix / AX</span> — eval + drift monitoring</li>
+          <li><span class="g">Weights &amp; Biases Weave</span> — extends W&amp;B to LLMs</li>
+          <li><span class="g">Datadog LLM Observability</span> — if already on Datadog</li>
+        </ul>
+      </div>
+      <div class="card green" style="margin-top:0.4em;">
+        <h3 class="g">What you actually want</h3>
+        <ul>
+          <li>Trace every call: prompt, response, tokens, latency, cost, model</li>
+          <li>Replay a request with a different prompt or model — "what if?"</li>
+          <li>Tag with tenant, feature, user-id (deck 04: per-tenant SLOs)</li>
+          <li>Dataset of hard cases to regression-test against</li>
+        </ul>
+      </div>
+    </div>
+    <div>
+      <div class="card purple">
+        <h3 class="p">Eval-as-a-service</h3>
+        <ul>
+          <li><span class="a">Braintrust</span> — eval scripts as code, regression suites in CI</li>
+          <li><span class="a">Patronus AI</span> — managed evals + safety tests</li>
+          <li><span class="a">Vellum</span> — visual prompt-engineering + evals</li>
+          <li><span class="a">PromptLayer</span> · <span class="a">Humanloop</span> — prompt versioning + evals</li>
+          <li><span class="a">OpenAI Evals</span> · <span class="a">Anthropic Workbench</span> — provider-native</li>
+        </ul>
+      </div>
+      <div class="card blue" style="margin-top:0.4em;">
+        <h3 class="b">Three eval types you need</h3>
+        <ol style="padding-left:1.2em;">
+          <li><span class="a">Code-graded</span> — JSON schema, exact match, regex; cheap, deterministic</li>
+          <li><span class="a">LLM-judge</span> — another model rates output (Claude / GPT) on rubric; cheap-but-noisy</li>
+          <li><span class="a">Human review</span> — sampling for quality drift; expensive but ground-truth</li>
+        </ol>
+      </div>
+      <div class="card red" style="margin-top:0.4em;">
+        <h3 class="r">"Vibes-based deploys"</h3>
+        <p>The most common reason ML features regress — no eval suite, no regression test, no comparison run before deploying a prompt change. Build evals before you build features.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- 13 — GUARDRAILS / AI GATEWAYS -->
+<section data-background-color="#0a0a0f">
+  <div class="slide-hdr"><span class="tag">12</span><h2>Guardrails &amp; AI Gateways</h2></div>
+  <p>A guardrail intercepts requests + responses, applying policy: redact PII, block prompt injection, refuse policy-violating output, log everything. An <span class="a">AI gateway</span> is that-and-more: routing, fallback, caching, key management.</p>
+
+  <div class="cols cols-2" style="margin-top:0.4em;">
+    <div>
+      <div class="card amber">
+        <h3 class="a">Guardrail products</h3>
+        <ul>
+          <li><span class="g">AWS Bedrock Guardrails</span> — content filters, denied topics, PII redaction, hallucination grounding</li>
+          <li><span class="g">Azure AI Content Safety</span> — moderation, prompt-shield, groundedness</li>
+          <li><span class="g">Vertex AI safety filters</span></li>
+          <li><span class="g">Lakera Guard</span> — prompt-injection focus</li>
+          <li><span class="g">Protect AI Layer</span> · <span class="g">HiddenLayer</span> — model security</li>
+          <li><span class="g">NeMo Guardrails</span> (NVIDIA, OSS) — Colang DSL</li>
+          <li><span class="g">Guardrails AI</span> (OSS) — input/output validation library + cloud</li>
+        </ul>
+      </div>
+      <div class="card green" style="margin-top:0.4em;">
+        <h3 class="g">AI gateways</h3>
+        <ul>
+          <li><span class="a">Cloudflare AI Gateway</span> — caching, fallback, rate-limit, observability across providers</li>
+          <li><span class="a">Portkey</span> — multi-provider gateway, retries, semantic cache</li>
+          <li><span class="a">Helicone</span> — proxy + observability</li>
+          <li><span class="a">LiteLLM Proxy</span> — OSS multi-provider router</li>
+          <li><span class="a">Kong AI Gateway</span> · <span class="a">F5 AI Gateway</span> — enterprise</li>
+        </ul>
+      </div>
+    </div>
+    <div>
+      <div class="card purple">
+        <h3 class="p">What a gateway buys you</h3>
+        <ul>
+          <li><span class="a">One key for many providers</span> — abstract the provider behind a stable API</li>
+          <li><span class="a">Fallback</span> — Anthropic 5xx → fall through to OpenAI / Bedrock copy</li>
+          <li><span class="a">Semantic cache</span> — repeat questions answered from cache</li>
+          <li><span class="a">Cost-aware routing</span> — easy to Haiku, hard to Opus</li>
+          <li><span class="a">Per-user rate limit + budget</span> — stop runaways</li>
+          <li><span class="a">Single audit log</span> — compliance loves it</li>
+        </ul>
+      </div>
+      <div class="card blue" style="margin-top:0.4em;">
+        <h3 class="b">Where to put it</h3>
+        <p>In front of every LLM call from your app. Don't hard-code provider URLs in services; route everything through the gateway. When a model deprecates or a provider goes down, you don't redeploy services.</p>
+      </div>
+      <div class="card red" style="margin-top:0.4em;">
+        <h3 class="r">The gateway is a critical path</h3>
+        <p>Your AI gateway is now in the hot path of every user request. Self-host it on CaaS (Cloud Run / Container Apps) or pick a vendor with a 99.99% SLA. Don't put it on a single Lambda.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- 14 — MCP HOSTING -->
+<section data-background-color="#0a0a0f">
+  <div class="slide-hdr"><span class="tag">13</span><h2>MCP Server Hosting &amp; Gateways</h2></div>
+  <p>Model Context Protocol — Anthropic's open standard (2024) for letting LLMs use external tools, resources, and prompts. The 2025–26 wave of <span class="a">MCP-as-a-service</span> hosts MCP servers and brokers OAuth.</p>
+
+  <div class="cols cols-2" style="margin-top:0.4em;">
+    <div>
+      <div class="card amber">
+        <h3 class="a">MCP hosting providers</h3>
+        <ul>
+          <li><span class="g">Cloudflare Workers + Agents SDK</span> — first-class remote MCP hosting</li>
+          <li><span class="g">Anthropic Connectors</span> — enterprise-managed MCP connections in Claude</li>
+          <li><span class="g">Pipedream MCP</span> · <span class="g">Composio MCP</span> · <span class="g">Smithery</span> — multi-tenant MCP marketplaces</li>
+          <li><span class="g">Vercel MCP</span> — push to Vercel, get a remote MCP endpoint</li>
+          <li><span class="g">Mintlify</span> · <span class="g">Stainless</span> — auto-generate MCP servers from API specs</li>
+        </ul>
+      </div>
+      <div class="card green" style="margin-top:0.4em;">
+        <h3 class="g">MCP gateways</h3>
+        <ul>
+          <li><span class="a">Docker MCP Gateway</span> — local + remote, runs MCP servers as containers behind one endpoint</li>
+          <li><span class="a">Supergateway</span> — SSE-bridge for stdio MCP servers</li>
+          <li><span class="a">MCP Inspector</span> — Anthropic's debugger</li>
+        </ul>
+      </div>
+    </div>
+    <div>
+      <div class="card purple">
+        <h3 class="p">OAuth for MCP</h3>
+        <p>The 2025 MCP authorisation profile (<a href="https://github.com/BrendanJamesLynskey/OAuth_for_MCP">deep dive deck</a>) specifies how an MCP client (LLM agent) authenticates the user against the MCP server's resource — Resource Indicators (RFC 8707), DPoP-bound tokens, audience-scoped consent. Most managed MCP hosts handle this for you.</p>
+      </div>
+      <div class="card blue" style="margin-top:0.4em;">
+        <h3 class="b">Companion decks</h3>
+        <ul>
+          <li><a href="https://github.com/BrendanJamesLynskey/MCP_Gateway_Playground">MCP Gateway Playground</a></li>
+          <li><a href="https://github.com/BrendanJamesLynskey/MCP_Supergateway_Playground">MCP Supergateway Playground</a></li>
+          <li><a href="https://github.com/BrendanJamesLynskey/Docker_for_LLMs_and_Agents">Docker for LLMs &amp; Agents</a></li>
+          <li><a href="https://github.com/BrendanJamesLynskey/OAuth_for_MCP">OAuth for MCP</a></li>
+        </ul>
+      </div>
+      <div class="card red" style="margin-top:0.4em;">
+        <h3 class="r">Confused-deputy in MCP</h3>
+        <p>If your MCP server passes the user's token to a downstream API without checking the audience, an attacker can replay it elsewhere. Mandatory: Resource Indicators on every issued token, audience-check on every consumed token. The MCP profile is explicit about this; many implementations get it wrong.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- 15 — LLM SECURITY -->
+<section data-background-color="#0a0a0f">
+  <div class="slide-hdr"><span class="tag">14</span><h2>LLM-Specific Security</h2></div>
+  <p>Cloud security (deck 05) plus a layer of new shapes: the model itself is part of the attack surface, prompts are user input, outputs are code-execution.</p>
+
+  <div class="cols cols-2" style="margin-top:0.4em;">
+    <div>
+      <div class="card amber">
+        <h3 class="a">OWASP LLM Top 10 (2025)</h3>
+        <ol style="padding-left:1.2em;">
+          <li><span class="g">LLM01</span> Prompt injection</li>
+          <li><span class="g">LLM02</span> Sensitive info disclosure</li>
+          <li><span class="g">LLM03</span> Supply chain (model + deps)</li>
+          <li><span class="g">LLM04</span> Data &amp; model poisoning</li>
+          <li><span class="g">LLM05</span> Improper output handling (XSS, RCE in tools)</li>
+          <li><span class="g">LLM06</span> Excessive agency (agent runs amok)</li>
+          <li><span class="g">LLM07</span> System prompt leakage</li>
+          <li><span class="g">LLM08</span> Vector / embedding weaknesses</li>
+          <li><span class="g">LLM09</span> Misinformation / hallucination</li>
+          <li><span class="g">LLM10</span> Unbounded consumption (cost / DoS)</li>
+        </ol>
+      </div>
+    </div>
+    <div>
+      <div class="card green">
+        <h3 class="g">Concrete controls</h3>
+        <ul>
+          <li><span class="a">Treat all model output as untrusted</span> — escape before HTML, parse before exec</li>
+          <li><span class="a">Tool sandboxes</span> — code interpreter in Firecracker / gVisor</li>
+          <li><span class="a">Constrained generation</span> — JSON-schema-validated decoding</li>
+          <li><span class="a">PII redaction at gateway</span> — Macie / Presidio / Lakera</li>
+          <li><span class="a">No PII in system prompts</span> that get cached or logged</li>
+          <li><span class="a">Per-tenant rate &amp; budget limits</span> on model calls</li>
+          <li><span class="a">Egress lockdown</span> — what URLs can the agent's browser tool hit?</li>
+        </ul>
+      </div>
+      <div class="card purple" style="margin-top:0.4em;">
+        <h3 class="p">Provider data-handling promises</h3>
+        <ul>
+          <li><span class="a">Anthropic API</span> — no training on customer data; 30-day default retention; Zero Data Retention available</li>
+          <li><span class="a">OpenAI Enterprise / API</span> — no training; 30-day retention; ZDR via API</li>
+          <li><span class="a">Bedrock / Vertex / Azure OpenAI</span> — no training, customer-managed keys, in-region</li>
+          <li>Read every provider's data-processing addendum (DPA) before relying on this</li>
+        </ul>
+      </div>
+      <div class="card red" style="margin-top:0.4em;">
+        <h3 class="r">"Free" models = your data is the price</h3>
+        <p>Some free / consumer-tier offerings train on inputs. For any product handling user data, use the paid API explicitly with the no-training DPA. Check the provider's setting; defaults vary.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- 16 — COMPLIANCE FOR AI -->
+<section data-background-color="#0a0a0f">
+  <div class="slide-hdr"><span class="tag">15</span><h2>Compliance for AI Services</h2></div>
+
+  <div class="cols cols-2" style="margin-top:0.4em;">
+    <div>
+      <div class="card amber">
+        <h3 class="a">EU AI Act (in force 2024–2027)</h3>
+        <ul>
+          <li>Risk-tiered: prohibited / high-risk / limited / minimal</li>
+          <li>High-risk (HR, education, infrastructure, biometrics): conformity assessment, registration, post-market monitoring</li>
+          <li>GPAI obligations on providers (model cards, energy reporting, copyright policy)</li>
+          <li>Transparency: AI-generated content must be labelled; users must know when they talk to AI</li>
+          <li>Penalties up to 7% of global turnover</li>
+          <li>Phased: prohibited (Feb 2025), GPAI (Aug 2025), HR (Aug 2026)</li>
+        </ul>
+      </div>
+      <div class="card green" style="margin-top:0.4em;">
+        <h3 class="g">Other frameworks</h3>
+        <ul>
+          <li><span class="a">ISO/IEC 42001</span> — AI management system; first ISO standard for AI</li>
+          <li><span class="a">NIST AI RMF</span> — voluntary US framework, common reference</li>
+          <li><span class="a">SOC 2 + AI controls</span> — auditors now ask</li>
+          <li><span class="a">UK AI Safety Institute</span> guidance, voluntary</li>
+          <li><span class="a">US EOs &amp; states</span> — Colorado AI Act (2026), CA SB 1047 follow-on attempts</li>
+        </ul>
+      </div>
+    </div>
+    <div>
+      <div class="card purple">
+        <h3 class="p">Practical checklist for an AI feature</h3>
+        <ul>
+          <li>Document model + version + provider + region per feature (model card)</li>
+          <li>Disclose AI use in UI &amp; ToS</li>
+          <li>Persist eval results per release</li>
+          <li>Provide opt-out / human-review for sensitive decisions</li>
+          <li>BYOK / data residency option for regulated tenants</li>
+          <li>Tamper-evident audit log of every model call</li>
+        </ul>
+      </div>
+      <div class="card blue" style="margin-top:0.4em;">
+        <h3 class="b">BYOK and customer data isolation</h3>
+        <ul>
+          <li><span class="a">Bedrock</span> — supports customer KMS keys for data; not for the model weights</li>
+          <li><span class="a">Vertex / Azure OpenAI</span> — equivalent</li>
+          <li><span class="a">AWS Bedrock Confidential Inference</span> — confidential VMs / GPUs (preview)</li>
+          <li><span class="a">Anthropic Privatemode</span> — confidential-compute LLM offering for HIPAA / FedRAMP</li>
+        </ul>
+      </div>
+      <div class="card red" style="margin-top:0.4em;">
+        <h3 class="r">Don't roll-your-own model card</h3>
+        <p>Vendors publish model cards (Anthropic, OpenAI, Meta) — re-use them, point to them. Your own card describes <em>your application's</em> use of the model: scope, limits, evaluations, who's accountable.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- 17 — COST ENGINEERING -->
+<section data-background-color="#0a0a0f">
+  <div class="slide-hdr"><span class="tag">16</span><h2>Cost Engineering for LLMaaS</h2></div>
+
+  <div class="cols cols-2" style="margin-top:0.4em;">
+    <div>
+      <div class="card amber">
+        <h3 class="a">The five biggest levers</h3>
+        <ol style="padding-left:1.2em;">
+          <li><span class="g">Prompt caching</span> — 50–90% off input on cached prefixes</li>
+          <li><span class="g">Model routing</span> — Haiku/4o-mini for easy, Opus/o3 for hard; classify cheaply, route smart</li>
+          <li><span class="g">Output limits</span> — <code>max_tokens</code>; constrain to JSON; ask for shorter answers</li>
+          <li><span class="g">RAG over context-stuffing</span> — search rather than send the whole corpus</li>
+          <li><span class="g">Batch APIs</span> — Anthropic / OpenAI batch are 50% off if you can wait 24h</li>
+        </ol>
+      </div>
+      <div class="card green" style="margin-top:0.4em;">
+        <h3 class="g">Per-tenant accounting</h3>
+        <ul>
+          <li>Tag every model call with tenant_id, feature, user</li>
+          <li>Aggregate to a real-time "cost-per-tenant" metric</li>
+          <li>Surface to the customer (transparency = trust)</li>
+          <li>Charge for it (deck 04: metering)</li>
+        </ul>
+      </div>
+    </div>
+    <div>
+      <div class="card purple">
+        <h3 class="p">Common runaway shapes</h3>
+        <ul>
+          <li>Agent loops without max-iteration ceiling</li>
+          <li>Streaming that's never stopped on disconnect</li>
+          <li>Embedding the entire user corpus on every signup ("just-in-case")</li>
+          <li>Logging full prompt+response into Datadog / Sentry — log size eats more than the API call</li>
+          <li>Testing in prod with a model you forgot to switch back from o3</li>
+        </ul>
+      </div>
+      <div class="card blue" style="margin-top:0.4em;">
+        <h3 class="b">Hard limits, by default</h3>
+        <ul>
+          <li>Per-org spend ceiling (provider has these — set them)</li>
+          <li>Per-user / per-tenant rate limit at gateway</li>
+          <li>Per-request <code>max_tokens</code> + <code>max_iterations</code> for agents</li>
+          <li>Budget alarms at 50% / 80% / 100% of monthly target</li>
+        </ul>
+      </div>
+      <div class="card red" style="margin-top:0.4em;">
+        <h3 class="r">"AI costs are infinite"</h3>
+        <p>Only if you let them. The same FinOps practices that work for cloud bills (deck 02) work here — tag, alarm, optimise. The difference is a 10× cost lever (caching) usually exists.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- 18 — ANTI-PATTERNS -->
+<section data-background-color="#0a0a0f">
+  <div class="slide-hdr"><span class="tag">17</span><h2>LLMaaS Anti-Patterns</h2></div>
+
+  <div class="cols cols-2">
+    <div>
+      <div class="card red">
+        <h3 class="r">"Hardcode <code>openai.com</code> in every service"</h3>
+        <p>One provider 5xx → 100% of your AI features down. Use an AI gateway from day one.</p>
+      </div>
+      <div class="card red" style="margin-top:0.4em;">
+        <h3 class="r">"One frontier model for everything"</h3>
+        <p>You pay frontier prices on classification tasks a Haiku could do for 1/15 the cost. Model-route by task complexity.</p>
+      </div>
+      <div class="card red" style="margin-top:0.4em;">
+        <h3 class="r">"Trust the model output as data"</h3>
+        <p>If the model returns <code>&lt;script&gt;…&lt;/script&gt;</code> and your app renders it raw, you have a stored XSS via prompt injection. Always escape; always validate.</p>
+      </div>
+      <div class="card red" style="margin-top:0.4em;">
+        <h3 class="r">"No evals, just vibes"</h3>
+        <p>Two weeks after launch, "is the new model better?" has no answer. Eval suite first.</p>
+      </div>
+    </div>
+    <div>
+      <div class="card red">
+        <h3 class="r">"Customer data in free-tier endpoints"</h3>
+        <p>Your free tier might train on user data. For any production app, paid API + DPA + data-residency review.</p>
+      </div>
+      <div class="card red" style="margin-top:0.4em;">
+        <h3 class="r">"Agents with full repo write access"</h3>
+        <p>Excessive agency. Constrain tools to the smallest scope; gate writes behind human approval; sandbox every tool call.</p>
+      </div>
+      <div class="card red" style="margin-top:0.4em;">
+        <h3 class="r">"RAG = vector DB"</h3>
+        <p>Retrieval is hybrid (keyword + vector + reranker). Pure-vector misses on code, names, IDs, exact strings. Add BM25 from day one.</p>
+      </div>
+      <div class="card red" style="margin-top:0.4em;">
+        <h3 class="r">"Fine-tuning before evals"</h3>
+        <p>Without an eval suite, you don't know whether your tune helped or hurt. Build the regression suite first.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- 19 — SUMMARY -->
+<section data-background-color="#0a0a0f">
+  <div class="slide-hdr"><span class="tag">18</span><h2>Summary &amp; Series Close</h2></div>
+
+  <div class="cols cols-2">
+    <div>
+      <div class="card amber">
+        <h3 class="a">Three takeaways</h3>
+        <ol style="padding-left:1.2em;">
+          <li>LLMaaS is a stack — inference, retrieval, agents, evals, governance. Build each layer on managed services unless you have a real reason to self-host.</li>
+          <li>Cost-control levers exist (caching, routing, batch). Use them; default behaviour is expensive.</li>
+          <li>The new security shapes — prompt injection, excessive agency, supply-chain, data leakage — are real and concrete. Treat them with the same rigour as cloud security in deck 05.</li>
+        </ol>
+      </div>
+      <div class="card green" style="margin-top:0.4em;">
+        <h3 class="g">Series recap</h3>
+        <ul>
+          <li><span class="a">01</span> Service Models — the *aaS taxonomy</li>
+          <li><span class="a">02</span> IaaS Foundations — VMs, VPC, storage</li>
+          <li><span class="a">03</span> PaaS / FaaS / CaaS — managed compute</li>
+          <li><span class="a">04</span> SaaS Architecture — multi-tenancy, B2B identity</li>
+          <li><span class="a">05</span> Cloud Security — IAM, secrets, network, compliance</li>
+          <li><span class="a">06</span> LLM-as-a-Service — this deck</li>
+        </ul>
+      </div>
+    </div>
+    <div>
+      <div class="card purple">
+        <h3 class="p">Companion decks &amp; hubs</h3>
+        <ul>
+          <li><a href="https://github.com/BrendanJamesLynskey/LLMs">LLMs hub</a> — umbrella index for AI / agentic content</li>
+          <li><a href="https://github.com/BrendanJamesLynskey/LLM_Hub_Local_LLM_Hosting">Local LLM Hosting</a> — the self-hosted counterpart</li>
+          <li><a href="https://github.com/BrendanJamesLynskey/Docker_for_LLMs_and_Agents">Docker for LLMs &amp; Agents</a> — Ollama / vLLM / GPU passthrough</li>
+          <li><a href="https://github.com/BrendanJamesLynskey/LLM_Hub_RAG_Retrieval">RAG &amp; Retrieval Systems</a></li>
+          <li><a href="https://github.com/BrendanJamesLynskey/LLM_Hub_Agents">Agents &amp; Orchestration</a></li>
+          <li><a href="https://github.com/BrendanJamesLynskey/OAuth_for_MCP">OAuth for MCP</a></li>
+          <li><a href="https://github.com/BrendanJamesLynskey/Cloud_aaS_Hub">*aaS series hub</a></li>
+        </ul>
+      </div>
+      <div class="card blue" style="margin-top:0.4em;">
+        <h3 class="b">One sentence</h3>
+        <p>"<em>LLM-as-a-Service is the cloud's newest layer — and it inherits every prior layer's discipline: identity, security, observability, cost — plus a few new ones unique to running models you didn't write.</em>"</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+</div></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.6.1/reveal.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.6.1/plugin/highlight/highlight.min.js"></script>
+<script>
+Reveal.initialize({hash:true,slideNumber:'c/t',transition:'fade',transitionSpeed:'fast',
+  controls:true,progress:true,center:false,width:1100,height:900,margin:0.01,
+  plugins:[RevealHighlight],highlight:{theme:'monokai'}});
+</script>
+<script>
+(function(){var h=Reveal.getConfig().height||900,m=Reveal.getConfig().margin||0.02;
+  var maxH=Math.floor(h*(1-2*m))+'px';
+  function fixSlides(){document.querySelectorAll('.reveal .slides>section,.reveal .slides>section>section').forEach(function(s){s.style.display='block';s.style.maxHeight=maxH;});}
+  Reveal.on('ready',fixSlides);Reveal.on('slidechanged',fixSlides);})();
+</script>
+</body>
+</html>
